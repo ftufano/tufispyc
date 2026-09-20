@@ -43,16 +43,24 @@ function ProductCard({ product }) {
 export default function Menu({ categories }) {
     const { auth } = usePage().props;
 
+    function scrollToCategory(event, slug) {
+        event.preventDefault();
+        document.getElementById(slug)?.scrollIntoView({ behavior: "smooth" });
+        window.history.replaceState(null, "", `#${slug}`);
+    }
+
     return (
         <>
-            <Head title="Menú" />
+            <Head title="Tortas • Desayunos • Arreglos de cumpleaños" />
 
             <div className="min-h-screen bg-rose-50/40">
                 <header className="border-b border-rose-100 bg-white">
                     <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-                        <span className="font-serif text-2xl tracking-wide text-gray-900">
-                            Tufi's
-                        </span>
+                        <img
+                            src="/images/tufis-logo.png"
+                            alt="Tufi's Postres y Cupcakes"
+                            className="h-16 w-16 object-contain"
+                        />
                         {auth?.user ? (
                             <Link
                                 href={route("dashboard")}
@@ -77,6 +85,12 @@ export default function Menu({ categories }) {
                                     <a
                                         key={category.id}
                                         href={`#${category.slug}`}
+                                        onClick={(event) =>
+                                            scrollToCategory(
+                                                event,
+                                                category.slug,
+                                            )
+                                        }
                                         className="whitespace-nowrap text-sm font-medium uppercase tracking-wide text-gray-500 hover:text-rose-600"
                                     >
                                         {category.name}
@@ -142,7 +156,7 @@ export default function Menu({ categories }) {
                 </main>
 
                 <footer className="border-t border-rose-100 bg-white py-8 text-center text-sm text-gray-400">
-                    © {new Date().getFullYear()} Tufi's — Hecho con amor.
+                    © {new Date().getFullYear()} Tufis — Hecho por Caelum Dev.
                 </footer>
             </div>
         </>
