@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Head, Link, usePage } from "@inertiajs/react";
 
 function formatPrice(price) {
@@ -42,11 +43,35 @@ function ProductCard({ product }) {
 
 export default function Menu({ categories }) {
     const { auth } = usePage().props;
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+    useEffect(() => {
+        function updateScrollTopVisibility() {
+            setShowScrollTop(window.scrollY > 200);
+        }
+
+        updateScrollTopVisibility();
+        window.addEventListener("scroll", updateScrollTopVisibility, {
+            passive: true,
+        });
+
+        return () =>
+            window.removeEventListener("scroll", updateScrollTopVisibility);
+    }, []);
 
     function scrollToCategory(event, slug) {
         event.preventDefault();
         document.getElementById(slug)?.scrollIntoView({ behavior: "smooth" });
         window.history.replaceState(null, "", `#${slug}`);
+    }
+
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.history.replaceState(
+            null,
+            "",
+            `${window.location.pathname}${window.location.search}`,
+        );
     }
 
     return (
@@ -155,8 +180,23 @@ export default function Menu({ categories }) {
                     )}
                 </main>
 
+                {showScrollTop && (
+                    <button
+                        type="button"
+                        onClick={scrollToTop}
+                        aria-label="Volver arriba"
+                        title="Volver arriba"
+                        className="fixed bottom-6 right-6 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-rose-600 text-2xl leading-none text-white shadow-lg transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:ring-offset-2"
+                    >
+                        &#8593;
+                    </button>
+                )}
+
                 <footer className="border-t border-rose-100 bg-white py-8 text-center text-sm text-gray-400">
-                    © {new Date().getFullYear()} Tufis — Hecho por Caelum Dev.
+                    <p>
+                        © {new Date().getFullYear()} Tufis — Hecho por Caelum
+                        Dev.
+                    </p>
                 </footer>
             </div>
         </>
