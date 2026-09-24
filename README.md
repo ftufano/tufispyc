@@ -70,10 +70,10 @@ Las imágenes se guardan en el disco `public` (`storage/app/public/products`)
 y se sirven a través del enlace simbólico `public/storage` (creado con
 `sail artisan storage:link`).
 
-En Laravel Cloud, usa Object Storage y configura el bucket como un disco `s3`.
-Configura `PRODUCT_IMAGE_DISK=s3` junto con las variables `AWS_*` que proporciona
-el bucket. No uses `storage:link` como comando de despliegue: los enlaces y los
-archivos locales no persisten entre despliegues de Laravel Cloud.
+En Laravel Cloud, usa Object Storage con nombre de disco `public` y configura
+`PRODUCT_IMAGE_DISK=public`. Laravel Cloud reemplaza automáticamente ese disco
+por el bucket adjunto. No uses `storage:link` como comando de despliegue: los
+enlaces y los archivos locales no persisten entre despliegues de Laravel Cloud.
 
 ## Security Vulnerabilities
 
