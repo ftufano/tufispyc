@@ -49,7 +49,9 @@ class Product extends Model
 
     public function imageUrl(): ?string
     {
-        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
+        return $this->image_path
+            ? Storage::disk(config('filesystems.product_image_disk'))->url($this->image_path)
+            : null;
     }
 
     public function getImageUrlAttribute(): ?string

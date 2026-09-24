@@ -38,7 +38,7 @@ class ProductController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
-            $data['image_path'] = $request->file('image')->store('products', 'public');
+            $data['image_path'] = $request->file('image')->store('products', config('filesystems.product_image_disk'));
         }
 
         $category->products()->create($data);
@@ -60,11 +60,11 @@ class ProductController extends Controller
 
         if ($request->hasFile('image')) {
             if ($product->image_path) {
-                Storage::disk('public')->delete($product->image_path);
+                Storage::disk(config('filesystems.product_image_disk'))->delete($product->image_path);
             }
-            $data['image_path'] = $request->file('image')->store('products', 'public');
+            $data['image_path'] = $request->file('image')->store('products', config('filesystems.product_image_disk'));
         } elseif ($request->boolean('remove_image') && $product->image_path) {
-            Storage::disk('public')->delete($product->image_path);
+            Storage::disk(config('filesystems.product_image_disk'))->delete($product->image_path);
             $data['image_path'] = null;
         }
 
@@ -78,7 +78,7 @@ class ProductController extends Controller
         $category = $product->category;
 
         if ($product->image_path) {
-            Storage::disk('public')->delete($product->image_path);
+            Storage::disk(config('filesystems.product_image_disk'))->delete($product->image_path);
         }
 
         $product->delete();
