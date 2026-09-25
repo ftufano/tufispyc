@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Head, Link, usePage } from "@inertiajs/react";
 
 function formatPrice(price) {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: "EUR",
     }).format(Number(price));
 }
 
@@ -43,24 +43,81 @@ function ProductCard({ product }) {
 
 export default function Menu({ categories }) {
     const { auth } = usePage().props;
+    const [activeCategory, setActiveCategory] = useState(
+        categories[0]?.slug ?? null,
+    );
+    const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
     const [showScrollTop, setShowScrollTop] = useState(false);
+    const categoryNavRef = useRef(null);
+    const categoryLinkRefs = useRef({});
+    const categoryDragRef = useRef(null);
+    const pendingCategoryRef = useRef(null);
 
     useEffect(() => {
-        function updateScrollTopVisibility() {
+        function updateMenuState() {
             setShowScrollTop(window.scrollY > 200);
+
+            let currentCategory = categories[0]?.slug ?? null;
+            const trackingPoint = window.innerHeight / 2;
+            const isAtBottom =
+                window.innerHeight + window.scrollY >=
+                document.documentElement.scrollHeight - 1;
+            const pendingCategory = pendingCategoryRef.current;
+
+            if (pendingCategory) {
+                const pendingSection = document.getElementById(pendingCategory);
+                const pendingSectionTop =
+                    pendingSection?.getBoundingClientRect().top;
+
+                if (
+                    isAtBottom ||
+                    (pendingSectionTop !== undefined &&
+                        Math.abs(pendingSectionTop - 96) <= 16)
+                ) {
+                    pendingCategoryRef.current = null;
+                } else {
+                    return;
+                }
+            }
+
+            for (const category of categories) {
+                const section = document.getElementById(category.slug);
+
+                if (section?.getBoundingClientRect().top <= trackingPoint) {
+                    currentCategory = category.slug;
+                } else {
+                    break;
+                }
+            }
+
+            setActiveCategory(
+                isAtBottom
+                    ? (categories.at(-1)?.slug ?? null)
+                    : currentCategory,
+            );
         }
 
-        updateScrollTopVisibility();
-        window.addEventListener("scroll", updateScrollTopVisibility, {
+        updateMenuState();
+        window.addEventListener("scroll", updateMenuState, {
             passive: true,
         });
 
-        return () =>
-            window.removeEventListener("scroll", updateScrollTopVisibility);
-    }, []);
+        return () => window.removeEventListener("scroll", updateMenuState);
+    }, [categories]);
+
+    useEffect(() => {
+        categoryLinkRefs.current[activeCategory]?.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+            inline: "center",
+        });
+    }, [activeCategory, categories]);
 
     function scrollToCategory(event, slug) {
         event.preventDefault();
+        pendingCategoryRef.current = slug;
+        setActiveCategory(slug);
+        setIsCategoryMenuOpen(false);
         document.getElementById(slug)?.scrollIntoView({ behavior: "smooth" });
         window.history.replaceState(null, "", `#${slug}`);
     }
@@ -74,18 +131,72 @@ export default function Menu({ categories }) {
         );
     }
 
+    function startCategoryDrag(event) {
+        const categoryNav = categoryNavRef.current;
+
+        if (!categoryNav) {
+            return;
+        }
+
+        categoryDragRef.current = {
+            clientX: event.clientX,
+            pointerId: event.pointerId,
+            scrollLeft: categoryNav.scrollLeft,
+        };
+    }
+
+    function dragCategories(event) {
+        const categoryNav = categoryNavRef.current;
+        const dragStart = categoryDragRef.current;
+
+        if (
+            !categoryNav ||
+            !dragStart ||
+            dragStart.pointerId !== event.pointerId
+        ) {
+            return;
+        }
+
+        const distance = event.clientX - dragStart.clientX;
+
+        if (Math.abs(distance) > 4) {
+            categoryNav.scrollLeft = dragStart.scrollLeft - distance;
+        }
+    }
+
+    function endCategoryDrag(event) {
+        if (categoryDragRef.current?.pointerId === event.pointerId) {
+            categoryDragRef.current = null;
+        }
+    }
+
     return (
         <>
             <Head title="Tortas • Desayunos • Arreglos de cumpleaños" />
 
             <div className="min-h-screen bg-rose-50/40">
-                <header className="border-b border-rose-100 bg-white">
+                <header className="sticky top-0 z-40 border-b border-rose-100 bg-white sm:static">
                     <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-                        <img
-                            src="/images/tufis-logo.png"
-                            alt="Tufi's Postres y Cupcakes"
-                            className="h-16 w-16 object-contain"
-                        />
+                        <div className="flex items-center gap-3">
+                            {categories.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCategoryMenuOpen(true)}
+                                    aria-label="Abrir categorías"
+                                    aria-expanded={isCategoryMenuOpen}
+                                    className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-md text-rose-600 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300 sm:hidden"
+                                >
+                                    <span className="h-0.5 w-5 bg-current" />
+                                    <span className="h-0.5 w-5 bg-current" />
+                                    <span className="h-0.5 w-5 bg-current" />
+                                </button>
+                            )}
+                            <img
+                                src="/images/tufis-logo.png"
+                                alt="Tufi's Postres y Cupcakes"
+                                className="h-16 w-16 object-contain"
+                            />
+                        </div>
                         {auth?.user ? (
                             <Link
                                 href={route("dashboard")}
@@ -102,10 +213,72 @@ export default function Menu({ categories }) {
                             </Link>
                         )}
                     </div>
+                </header>
 
-                    {categories.length > 0 && (
-                        <nav className="border-t border-rose-100 bg-white">
-                            <div className="mx-auto flex max-w-6xl flex-wrap gap-x-6 gap-y-2 overflow-x-auto px-6 py-3">
+                {categories.length > 0 && (
+                    <nav className="sticky top-0 z-30 hidden border-b border-rose-100 bg-white sm:block">
+                        <div
+                            ref={categoryNavRef}
+                            onPointerDown={startCategoryDrag}
+                            onPointerMove={dragCategories}
+                            onPointerUp={endCategoryDrag}
+                            onPointerCancel={endCategoryDrag}
+                            className="mx-auto flex max-w-6xl cursor-grab touch-pan-y gap-6 overflow-x-auto px-6 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
+                        >
+                            {categories.map((category) => (
+                                <a
+                                    key={category.id}
+                                    ref={(element) => {
+                                        categoryLinkRefs.current[
+                                            category.slug
+                                        ] = element;
+                                    }}
+                                    href={`#${category.slug}`}
+                                    onClick={(event) =>
+                                        scrollToCategory(event, category.slug)
+                                    }
+                                    onDragStart={(event) =>
+                                        event.preventDefault()
+                                    }
+                                    aria-current={
+                                        activeCategory === category.slug
+                                            ? "location"
+                                            : undefined
+                                    }
+                                    className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-sm font-medium uppercase tracking-wide transition ${
+                                        activeCategory === category.slug
+                                            ? "bg-rose-600 text-white"
+                                            : "text-gray-500 hover:bg-rose-50 hover:text-rose-600"
+                                    }`}
+                                >
+                                    {category.name}
+                                </a>
+                            ))}
+                        </div>
+                    </nav>
+                )}
+
+                {isCategoryMenuOpen && (
+                    <div className="fixed inset-0 z-50 sm:hidden">
+                        <button
+                            type="button"
+                            onClick={() => setIsCategoryMenuOpen(false)}
+                            aria-label="Cerrar categorías"
+                            className="absolute inset-0 bg-gray-900/30"
+                        />
+                        <nav
+                            aria-label="Categorías"
+                            className="relative flex h-full w-72 max-w-[calc(100%-3rem)] flex-col bg-white p-4 shadow-xl"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setIsCategoryMenuOpen(false)}
+                                aria-label="Cerrar categorías"
+                                className="mb-4 flex h-11 w-11 items-center justify-center rounded-md text-2xl text-rose-600 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                            >
+                                &times;
+                            </button>
+                            <div className="flex flex-col gap-1 overflow-y-auto">
                                 {categories.map((category) => (
                                     <a
                                         key={category.id}
@@ -116,15 +289,24 @@ export default function Menu({ categories }) {
                                                 category.slug,
                                             )
                                         }
-                                        className="whitespace-nowrap text-sm font-medium uppercase tracking-wide text-gray-500 hover:text-rose-600"
+                                        aria-current={
+                                            activeCategory === category.slug
+                                                ? "location"
+                                                : undefined
+                                        }
+                                        className={`rounded-md px-4 py-3 text-sm font-medium uppercase tracking-wide transition ${
+                                            activeCategory === category.slug
+                                                ? "bg-rose-600 text-white"
+                                                : "text-gray-600 hover:bg-rose-50 hover:text-rose-600"
+                                        }`}
                                     >
                                         {category.name}
                                     </a>
                                 ))}
                             </div>
                         </nav>
-                    )}
-                </header>
+                    </div>
+                )}
 
                 <section className="mx-auto max-w-6xl px-6 py-14 text-center">
                     <h1 className="font-serif text-4xl text-gray-900 sm:text-5xl">
@@ -142,7 +324,7 @@ export default function Menu({ categories }) {
                         <section
                             key={category.id}
                             id={category.slug}
-                            className="scroll-mt-32"
+                            className="scroll-mt-24"
                         >
                             <div className="mb-6 text-center">
                                 <h2 className="font-serif text-3xl text-gray-900">
